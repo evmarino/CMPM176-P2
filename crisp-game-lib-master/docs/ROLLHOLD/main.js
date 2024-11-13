@@ -1,4 +1,3 @@
-
 title = "ROLLHOLD";
 
 description = `
@@ -63,35 +62,55 @@ let buildings;
 let nextBuildingTicks;
 let animTicks;
 
-let x = 50
+//shield power up
+let isShieldActive = true;
+let shieldDuration = 300; // Shield lasts for 3 seconds 
+let shieldRemaining = 0;
+
+let powerUpText = "";
+let powerUpTextPos = vec(0, 0);
+let powerUpTextDuration = 0;
+
+let x = 50;
 
 // Power-up Variables
 let powerUp = null;
 let isPowerUpActive = false;
 let powerUpDuration = 180; // Duration of double points effect (3 seconds at 60 fps)
 let powerUpRemaining = 0;
-let powerUpSpawnTimer = 600; // Power-up spawn delay (10 seconds at 60 fps)
+let powerUpSpawnTimer = 100; // Power-up spawn delay (10 seconds at 60 fps)
 
 function spawnPowerUp() {
-  // Spawn the power-up at a random position with the same horizontal movement as an enemy
-  powerUp = {
-    pos: vec(rndi(0, 100), rndi(10, 80)),
-    vx: (rndi(0, 2) * 2 - 1) * sqrt(difficulty) * 0.4, // Same speed and horizontal direction as an enemy
-    isActive: true,
-  };
+  if (rnd() < 0.5) {
+    // Spawn shield power-up
+    powerUp = {
+      pos: vec(rndi(0, 100), rndi(10, 80)),
+      vx: (rndi(0, 2) * 2 - 1) * sqrt(difficulty) * 0.4,
+      type: "shield",
+      isActive: true,
+    };
+  } else {
+    // Spawn double points power-up
+    powerUp = {
+      pos: vec(rndi(0, 100), rndi(10, 80)),
+      vx: (rndi(0, 2) * 2 - 1) * sqrt(difficulty) * 0.4,
+      type: "doublePoints",
+      isActive: true,
+    };
+  }
 }
 
-document.addEventListener('keydown', (event) => {
-  if (event.key === 'ArrowRight') {
-    if (x < 100){
-      x += 1;
-    }else {
+document.addEventListener('keyup', (event) => {
+  if (event.key === 'ArrowRight' || event.key === 'd') {
+    if (x < 100) {
+      x += 2;
+    } else {
       x = 0;
     }
-  } else if (event.key === 'ArrowLeft') {
-    if (x > 0){
-      x -= 1;
-    }else{
+  } else if (event.key === 'ArrowLeft' || event.key === 'a') {
+    if (x > 0) {
+      x -= 2;
+    } else {
       x = 100;
     }
   }
@@ -114,6 +133,10 @@ function update() {
     nextBuildingTicks = 0;
     animTicks = 0;
     powerUpSpawnTimer = 600;  
+
+    shieldRemaining = shieldDuration;
+    powerUpTextDuration = shieldDuration;
+    
   }
   const df = sqrt(difficulty);
 
@@ -125,34 +148,54 @@ function update() {
       powerUpSpawnTimer = 600;
     }
   }
-
     // Render and Move Power-Up if Available
     if (powerUp && powerUp.isActive) {
-      color("yellow");
-      box(powerUp.pos, 8); // Render power-up as a square with the same size as an enemy
-      powerUp.pos.x += powerUp.vx * df; // Move horizontally across the screen
+      color(powerUp.type === "shield" ? "light_blue" : "yellow");
+      box(powerUp.pos, 8); // Draw power-up
+      powerUp.pos.x += powerUp.vx * df;
   
-      // Check if power-up is hit by a bullet or touches the player
-      remove(shots, (s) => {
-        if (s.pos.distanceTo(powerUp.pos) < 5 || powerUp.pos.distanceTo(playerPos) < 10) { // collision range check
-          isPowerUpActive = true;
-          powerUpRemaining = powerUpDuration; // Set duration for double points
+      // Check for player collision with power-up
+      if (powerUp.pos.distanceTo(playerPos) < 10) {
+        if (powerUp.type === "shield") {
+          isShieldActive = true;
+          shieldRemaining = shieldDuration;
           play("powerUp");
-          particle(powerUp.pos, 10, 1, 0, 0.5); // Particle effect on break
-          powerUp = null; // Immediately despawn power-up after being hit or touching player
-          console.log(score);
-          addScore(score, s.pos);
-          console.log(score);
-          return true;
+          
+        } else if (powerUp.type === "doublePoints") {
+          isPowerUpActive = true;
+          powerUpRemaining = powerUpDuration;
+          play("powerUp");
         }
-        return false;
-      });
+        particle(powerUp.pos, 10, 1, 0, 0.5);
+        powerUp = null; // Remove the power-up
+      }
   
-      // Despawn if power-up moves off-screen
-      if (powerUp && (powerUp.pos.x < -10 || powerUp.pos.x > 110)) {
+      // Remove power-up if it goes off-screen
+      if (powerUp.pos.x < -10 || powerUp.pos.x > 110) {
         powerUp = null;
       }
     }
+    
+  // Shield logic
+  if (isShieldActive) {
+    const circleRadius = 5; 
+    shieldRemaining--;
+    powerUpTextDuration--;
+    // Draw the shield circle around the player
+    color("light_blue"); 
+    for (let i = 0; i < 360; i += 10) { 
+        const angle = i * (PI / 180); 
+        const pos = vec(
+            playerPos.x + cos(angle) * circleRadius,
+            playerPos.y + sin(angle) * circleRadius
+        );
+        box(pos, 2, 2); 
+  }
+  if (shieldRemaining <= 0) {
+    isShieldActive = false;
+  }
+
+}
   
     // Double Points Effect
     if (isPowerUpActive) {
@@ -265,22 +308,60 @@ function update() {
     e.score -= 0.033 * df;
     return e.pos.x < -5 || e.pos.x > 105;
   });
-  // color("red");
-  // remove(bullets, (b) => {
-  //   b.pos.add(b.vel);
-  //   const c = box(b.pos, 4).isColliding;
-  //   if (c.rect.blue) {
-  //     play("powerUp");
-  //     addScore(10, b.pos);
-  //     particle(b.pos);
-  //     return true;
-  //   } else if (c.char.a) {
-  //     x = 50
-  //     playerPos = vec(50, 50);
-  //     play("explosion");
-  //     end();
-  //   }
-  // });
+
+  if (powerUp && powerUp.isActive) {
+  color(powerUp.type === "shield" ? "light_blue" : "yellow");
+  box(powerUp.pos, 8);
+  powerUp.pos.x += powerUp.vx * df;
+
+  remove(shots, (s) => {
+    if (s.pos.distanceTo(powerUp.pos) < 5 || powerUp.pos.distanceTo(playerPos) < 10) {
+      if (powerUp.type === "shield") {
+        isShieldActive = true;
+        shieldRemaining = shieldDuration; // Set shield duration
+        play("powerUp");
+        particle(powerUp.pos, 10, 1, 0, 0.5);
+      } else if (powerUp.type === "doublePoints") {
+        isPowerUpActive = true;
+        powerUpRemaining = powerUpDuration;
+        play("powerUp");
+        particle(powerUp.pos, 10, 1, 0, 0.5);
+      }
+      powerUp = null;
+      return true;
+    }
+    return false;
+  });
+
+  if (powerUp && (powerUp.pos.x < -10 || powerUp.pos.x > 110)) {
+    powerUp = null;
+  }
+}
+
+  //enemies
+  color("red");
+  remove(bullets, (b) => {
+    b.pos.add(b.vel);
+    const c = box(b.pos, 4).isColliding;
+    if (c.rect.blue) {
+      play("powerUp");
+      addScore(10, b.pos);
+      particle(b.pos);
+      return true;
+    } else if (c.char.a) {
+      if (isShieldActive) {
+        play("powerUp");
+        particle(playerPos, 20, 1, 0, 0.5); // Shield absorbs the hit
+        isShieldActive = false;
+        return true;
+      } else {
+        x = 50;
+        playerPos = vec(50, 50);
+        play("explosion");
+        end();
+      }
+    }
+  });
 }
 
 function setNextEnemy() {
