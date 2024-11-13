@@ -44,7 +44,7 @@ options = {
   seed: 9,
 };
 
-const playerPos = vec(50, 50);
+let playerPos = vec(50, 50);
 const turretRadius = 12;
 let turretAngle;
 let turretVa;
@@ -62,6 +62,25 @@ let bullets;
 let buildings;
 let nextBuildingTicks;
 let animTicks;
+
+let x = 50
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'ArrowRight') {
+    if (x < 100){
+      x += 1;
+    }else {
+      x = 0;
+    }
+  } else if (event.key === 'ArrowLeft') {
+    if (x > 0){
+      x -= 1;
+    }else{
+      x = 100;
+    }
+  }
+  playerPos = vec(x, 50);
+});
+
 
 function update() {
   if (!ticks) {
@@ -187,6 +206,8 @@ function update() {
       particle(b.pos);
       return true;
     } else if (c.char.a) {
+      x = 50
+      playerPos = vec(50, 50);
       play("explosion");
       end();
     }
