@@ -64,6 +64,23 @@ let nextBuildingTicks;
 let animTicks;
 
 let x = 50
+
+// Power-up Variables
+let powerUp = null;
+let isPowerUpActive = false;
+let powerUpDuration = 180; // Duration of double points effect (3 seconds at 60 fps)
+let powerUpRemaining = 0;
+let powerUpSpawnTimer = 600; // Power-up spawn delay (10 seconds at 60 fps)
+
+function spawnPowerUp() {
+  // Spawn the power-up at a random position with the same horizontal movement as an enemy
+  powerUp = {
+    pos: vec(rndi(0, 100), rndi(10, 80)),
+    vx: (rndi(0, 2) * 2 - 1) * sqrt(difficulty) * 0.4, // Same speed and horizontal direction as an enemy
+    isActive: true,
+  };
+}
+
 document.addEventListener('keydown', (event) => {
   if (event.key === 'ArrowRight') {
     if (x < 100){
@@ -96,8 +113,60 @@ function update() {
     buildings = [];
     nextBuildingTicks = 0;
     animTicks = 0;
+    powerUpSpawnTimer = 600;  
   }
   const df = sqrt(difficulty);
+
+  // Power-Up Spawn Logic
+  if (powerUp == null && !isPowerUpActive) {
+    powerUpSpawnTimer--;
+    if (powerUpSpawnTimer <= 0) {
+      spawnPowerUp();
+      powerUpSpawnTimer = 600;
+    }
+  }
+
+    // Render and Move Power-Up if Available
+    if (powerUp && powerUp.isActive) {
+      color("yellow");
+      box(powerUp.pos, 8); // Render power-up as a square with the same size as an enemy
+      powerUp.pos.x += powerUp.vx * df; // Move horizontally across the screen
+  
+      // Check if power-up is hit by a bullet or touches the player
+      remove(shots, (s) => {
+        if (s.pos.distanceTo(powerUp.pos) < 5 || powerUp.pos.distanceTo(playerPos) < 10) { // collision range check
+          isPowerUpActive = true;
+          powerUpRemaining = powerUpDuration; // Set duration for double points
+          play("powerUp");
+          particle(powerUp.pos, 10, 1, 0, 0.5); // Particle effect on break
+          powerUp = null; // Immediately despawn power-up after being hit or touching player
+          console.log(score);
+          addScore(score, s.pos);
+          console.log(score);
+          return true;
+        }
+        return false;
+      });
+  
+      // Despawn if power-up moves off-screen
+      if (powerUp && (powerUp.pos.x < -10 || powerUp.pos.x > 110)) {
+        powerUp = null;
+      }
+    }
+  
+    // Double Points Effect
+    if (isPowerUpActive) {
+      powerUpRemaining--;
+      if (powerUpRemaining <= 0) {
+        isPowerUpActive = false;
+      }
+    }
+  
+    // Scoring function that applies double points if power-up is active
+    function addScoringPoints(points, pos) {
+      addScore(isPowerUpActive ? points * 2 : points, pos);
+    }
+
   nextBuildingTicks--;
   if (nextBuildingTicks <= 0) {
     buildings.push({
@@ -196,22 +265,22 @@ function update() {
     e.score -= 0.033 * df;
     return e.pos.x < -5 || e.pos.x > 105;
   });
-  color("red");
-  remove(bullets, (b) => {
-    b.pos.add(b.vel);
-    const c = box(b.pos, 4).isColliding;
-    if (c.rect.blue) {
-      play("powerUp");
-      addScore(10, b.pos);
-      particle(b.pos);
-      return true;
-    } else if (c.char.a) {
-      x = 50
-      playerPos = vec(50, 50);
-      play("explosion");
-      end();
-    }
-  });
+  // color("red");
+  // remove(bullets, (b) => {
+  //   b.pos.add(b.vel);
+  //   const c = box(b.pos, 4).isColliding;
+  //   if (c.rect.blue) {
+  //     play("powerUp");
+  //     addScore(10, b.pos);
+  //     particle(b.pos);
+  //     return true;
+  //   } else if (c.char.a) {
+  //     x = 50
+  //     playerPos = vec(50, 50);
+  //     play("explosion");
+  //     end();
+  //   }
+  // });
 }
 
 function setNextEnemy() {
