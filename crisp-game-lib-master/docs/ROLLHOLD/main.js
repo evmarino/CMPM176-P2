@@ -71,7 +71,10 @@ let powerUpText = "";
 let powerUpTextPos = vec(0, 0);
 let powerUpTextDuration = 0;
 
-let x = 50;
+// player position x
+let playerPos_X = 50;
+// check moving key press
+let keyCodeEvent = false;
 
 // Power-up Variables
 let powerUp = null;
@@ -100,21 +103,23 @@ function spawnPowerUp() {
   }
 }
 
-document.addEventListener('keyup', (event) => {
+// player move
+document.addEventListener('keydown', (event) => {
   if (event.key === 'ArrowRight' || event.key === 'd') {
-    if (x < 100) {
-      x += 2;
+    if (playerPos_X < 100) {
+      playerPos_X += 2;
     } else {
-      x = 0;
+      playerPos_X = 0;
     }
   } else if (event.key === 'ArrowLeft' || event.key === 'a') {
-    if (x > 0) {
-      x -= 2;
+    if (playerPos_X > 0) {
+      playerPos_X -= 2;
     } else {
-      x = 100;
+      playerPos_X = 100;
     }
   }
-  playerPos = vec(x, 50);
+  // update player position
+  playerPos = vec(playerPos_X, 50);
 });
 
 
@@ -232,16 +237,33 @@ function update() {
   rect(0, 70, 100, 9);
   rect(0, 92, 100, 3);
   animTicks += df;
-  if (input.isJustPressed) {
+  // check moving key press or not
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'ArrowRight' || event.key === 'd') {
+      keyCodeEvent = false;
+    } else if (event.key === 'ArrowLeft' || event.key === 'a') {
+      keyCodeEvent = false;
+    }else{
+      keyCodeEvent = true;
+    }
+  });
+  if (input.isJustPressed && keyCodeEvent === true) {
     play("select");
     turretVa *= -1;
     fireTicks = 0;
   }
   const tp = vec(turretRadius).rotate(turretAngle).add(playerPos);
   color("light_cyan");
+  // set it true when no key press
   if (!input.isPressed) {
+    keyCodeEvent = true;
+  }
+  if (!input.isPressed){
     turretAngle = wrap(turretAngle + turretVa * 0.07 * df, -PI, PI);
-  } else {
+  } else if (keyCodeEvent === false){
+    turretAngle = wrap(turretAngle + turretVa * 0.07 * df, -PI, PI);
+  }
+  else {
     fireTicks -= df;
     if (fireTicks < 0) {
       play("laser");
@@ -355,7 +377,7 @@ function update() {
         isShieldActive = false;
         return true;
       } else {
-        x = 50;
+        playerPos_X = 50;          // reset player position
         playerPos = vec(50, 50);
         play("explosion");
         end();
@@ -369,4 +391,3 @@ function setNextEnemy() {
   nextEnemy.pos.set(vx > 0 ? -3 : 103, rnd(9, 90));
   nextEnemy.vx = vx;
 }
-
